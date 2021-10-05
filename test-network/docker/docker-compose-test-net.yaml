@@ -158,3 +158,16 @@ services:
       - peer0.org2.example.com
     networks:
       - test
+
+  ipfs:
+    container_name: ipfs_host
+    image: ipfs/go-ipfs:latest
+    ports:
+        - 8080:8080
+        - 4001:4001
+        - 5001:5001
+    volumes:
+        - /home/quieoo/desktop/fabric/fabric-samples/test-network/ipfs_temp:/export
+        - /home/quieoo/desktop/fabric/fabric-samples/test-network/ipfs_temp:/data/ipfs
+    networks:
+        - test

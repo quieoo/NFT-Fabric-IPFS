@@ -12,3 +12,5 @@ organizations/peerOrganizations/*
 system-genesis-block/*
 *.tar.gz
 log.txt
+
+/test-network/ipfs_temp/

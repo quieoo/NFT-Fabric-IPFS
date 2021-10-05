@@ -7,19 +7,22 @@
 package chaincode
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
+	shell "github.com/ipfs/go-ipfs-api"
 )
 
 const uriKey = "uri"
 
 const balancePrefix = "account~tokenId~sender"
 const approvalPrefix = "account~operator"
-
+const nftPrefix="account~nft"
 const minterMSPID = "Org1MSP"
 
 // SmartContract provides functions for transferring tokens between accounts
@@ -91,6 +94,7 @@ type ApprovalForAll struct {
 	Operator string `json:"operator"`
 	Approved bool   `json:"approved"`
 }
+
 
 // URI MUST emit when the URI is updated for a token ID.
 // Note: This event is not used in this contract implementation because in this implementation,
@@ -593,6 +597,172 @@ func authorizationHelper(ctx contractapi.TransactionContextInterface) error {
 
 	return nil
 }
+type nft struct{
+	ID string
+	CID string
+	Owner string
+}
+
+
+func (s *SmartContract) MintWithFile (ctx contractapi.TransactionContextInterface, id uint64, filepath string) error{
+	/*file,ferr:=os.Open(filepath)
+	if ferr!=nil{
+		fmt.Printf("ERR:%s\n",ferr.Error())
+		return ferr
+	}
+	defer file.Close()
+
+	r:=bufio.NewReader(file)*/
+
+	sh := shell.NewShell("ipfs_host:5001")
+	//cid, erripfs := sh.Add(r)
+	cid,erripfs:=sh.Add(strings.NewReader("Hello NFT!"))
+	if erripfs != nil {
+		fmt.Println(erripfs.Error())
+		return fmt.Errorf("failed to add file %v",erripfs)
+	}
+	fmt.Printf("===successfully add file to ipfs, cid:%s===\n", cid)
+
+	// Check minter authorization - this sample assumes Org1 is the central banker with privilege to mint new tokens
+	err := authorizationHelper(ctx)
+	if err != nil {
+		return err
+	}
+	// Mint tokens
+	operator, err := ctx.GetClientIdentity().GetID()
+	if err != nil {
+		return fmt.Errorf("failed to get client id: %v", err)
+	}
+	key:=fmt.Sprintf("%d",id)
+	value:=&nft{
+		ID: key,
+		CID: cid,
+		Owner: operator,
+	}
+	jvalue, err :=json.Marshal(value)
+	if err!=nil{
+		return fmt.Errorf("failed to marshal data %v",err)
+	}
+
+	nftkey,err:=ctx.GetStub().CreateCompositeKey(nftPrefix,[]string{key})
+	if err!=nil{
+		return fmt.Errorf("failed to create composite key %v\n",err)
+	}
+	err = ctx.GetStub().PutState(nftkey, jvalue)
+	if err != nil {
+		return fmt.Errorf("failed to putstate for key %s , %v",nftkey,err)
+	}
+	operate_dc, err := base64.StdEncoding.DecodeString(operator)
+	if err != nil {
+		return fmt.Errorf("failed to decode: %v",err)
+	}
+	fmt.Printf("===successfully mint token {tokenId: %d, CID: %s, owner: %s}===\n",id,cid,string(operate_dc))
+
+
+	// Emit TransferSingle event
+	return nil
+}
+
+func (s *SmartContract) Transfer(ctx contractapi.TransactionContextInterface, recipient string, id uint64, amount uint64) error {
+	sender,err:=ctx.GetClientIdentity().GetID()
+	if err != nil {
+		return fmt.Errorf("failed to get client id: %v", err)
+	}
+
+	if sender == recipient {
+		return fmt.Errorf("transfer to self")
+	}
+	
+	key:=fmt.Sprintf("%d",id)
+	nftkey,err:=ctx.GetStub().CreateCompositeKey(nftPrefix,[]string{key})
+	if err!=nil{
+		return fmt.Errorf("failed to create composite key %v\n",err)
+	}
+	jv,err:=ctx.GetStub().GetState(nftkey)
+	if err!=nil{
+		return fmt.Errorf("failed to getstate for key: %s, %v",nftkey,err)
+	}
+	v:=&nft{}
+	err=json.Unmarshal(jv,v)
+	if err!=nil{
+		return fmt.Errorf("failed to unmarshal data %v",err)
+	}
+	v.Owner=recipient
+	
+	jv,err=json.Marshal(v)
+	if err!=nil{
+		return fmt.Errorf("failed to marshal data %v",err)
+	}
+	err=ctx.GetStub().PutState(nftkey,jv)
+	if err!=nil{
+		return fmt.Errorf("failed to putstate for key %s , %v",nftkey,err)
+	}
+	sender_dc, err := base64.StdEncoding.DecodeString(sender)
+	if err != nil {
+		return fmt.Errorf("failed to decode: %v",err)
+	}
+	recipient_dc, err := base64.StdEncoding.DecodeString(recipient)
+	if err != nil {
+		return fmt.Errorf("failed to decode: %v",err)
+	}
+	fmt.Printf("===successfully transfer nft from %s to %s==\n",sender_dc,recipient_dc)
+	return nil
+}
+
+func (s *SmartContract)Query(ctx contractapi.TransactionContextInterface, id uint64) (string, error){
+	key:=fmt.Sprintf("%d",id)
+	nftkey,err:=ctx.GetStub().CreateCompositeKey(nftPrefix,[]string{key})
+	if err!=nil{
+		return "",fmt.Errorf("failed to create composite key %v\n",err)
+	}
+	jvalue,err:=ctx.GetStub().GetState(nftkey)
+	if err!=nil{
+		return "",fmt.Errorf("failed to getstate for key: %s, %v",nftkey,err)
+	}
+	value:=&nft{}
+	err = json.Unmarshal(jvalue, value)
+	if err != nil {
+		return "", fmt.Errorf("failed to unmarshal data %v",err)
+	}
+	owner_dc, err := base64.StdEncoding.DecodeString(value.Owner)
+	if err != nil {
+		return "",fmt.Errorf("failed to decode: %v",err)
+	}
+	fmt.Printf("===query the owner of token %d, owner:%s===\n",id,owner_dc)
+	return value.Owner,nil
+}
+
+func (s *SmartContract)Request(ctx contractapi.TransactionContextInterface, id uint64) error{
+	key:=fmt.Sprintf("%d",id)
+	nftkey,err:=ctx.GetStub().CreateCompositeKey(nftPrefix,[]string{key})
+	if err!=nil{
+		return fmt.Errorf("failed to create composite key %v\n",err)
+	}
+	jvalue,err:=ctx.GetStub().GetState(nftkey)
+	if err!=nil{
+		return fmt.Errorf("failed to getstate for key: %s, %v",nftkey,err)
+	}
+	value:=&nft{}
+	err = json.Unmarshal(jvalue, value)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal data %v",err)
+	}
+	cid:=value.CID
+	fmt.Printf("===request the file cid of token %d, cid:%s===\n",id,value.CID)
+	sh := shell.NewShell("ipfs_host:5001")
+	reader,err:=sh.Cat(cid)
+	if err!=nil{
+		return fmt.Errorf("failed to get data with cid %s from ipfs %v",cid,err)
+	}
+	defer reader.Close()
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(reader)
+	fmt.Printf("===read file content, {CID:%s, Content:%s}===\n",cid,buf.String())
+	return nil
+}
+
+
 
 func mintHelper(ctx contractapi.TransactionContextInterface, operator string, account string, id uint64, amount uint64) error {
 	if account == "0x0" {

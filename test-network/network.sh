@@ -277,6 +277,10 @@ function deployCC() {
 
 # Tear down running network
 function networkDown() {
+  echo '===rm ipfs_host container==='
+  docker stop ipfs_host
+  docker rm ipfs_host
+  
   # stop org3 containers also in addition to org1 and org2, in case we were running sample to add org3
   DOCKER_SOCK=$DOCKER_SOCK docker-compose -f $COMPOSE_FILE_BASE -f $COMPOSE_FILE_COUCH -f $COMPOSE_FILE_CA down --volumes --remove-orphans
   docker-compose -f $COMPOSE_FILE_COUCH_ORG3 -f $COMPOSE_FILE_ORG3 down --volumes --remove-orphans
