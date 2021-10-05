@@ -1,6 +1,6 @@
 [//]: # (SPDX-License-Identifier: CC-BY-4.0)
 
-#System Architecture
+# System Architecture
 ![image](https://github.com/quieoo/nft_fabric_ipfs/blob/main/architecture/architecture_nft_ipfs.drawio%20(2).png)
 
 # Hyperledger Fabric Samples
