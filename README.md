@@ -3,6 +3,7 @@
 # System Architecture
 ![image](https://github.com/quieoo/nft_fabric_ipfs/blob/main/architecture/architecture_nft_ipfs.drawio%20(2).png)
 
+[Why build this app?](https://github.com/quieoo/nft_fabric_ipfs/blob/main/architecture/nft.pptx)
 # Hyperledger Fabric Samples
 
 You can use Fabric samples to get started working with Hyperledger Fabric, explore important Fabric features, and learn how to build applications that can interact with blockchain networks using the Fabric SDKs. To learn more about Hyperledger Fabric, visit the [Fabric documentation](https://hyperledger-fabric.readthedocs.io/en/latest).
