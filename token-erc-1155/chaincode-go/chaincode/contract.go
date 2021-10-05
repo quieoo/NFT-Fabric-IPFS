@@ -11,6 +11,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -621,6 +622,14 @@ type nft struct{
 
 
 func (s *SmartContract) MintWithFile (ctx contractapi.TransactionContextInterface, id uint64, filepath string) error{
+	file,ferr:=os.OpenFile(filepath,os.O_CREATE,0666)
+	defer file.Close()
+	_, ferr = file.Write([]byte("Hello NFT!"))
+	if ferr != nil {
+		return fmt.Errorf("failed to write file")
+	}
+
+
 	/*file,ferr:=os.Open(filepath)
 	if ferr!=nil{
 		fmt.Printf("ERR:%s\n",ferr.Error())
@@ -749,6 +758,7 @@ func (s *SmartContract)Query(ctx contractapi.TransactionContextInterface, id uin
 }
 
 func (s *SmartContract)Request(ctx contractapi.TransactionContextInterface, id uint64) error{
+	//get target nft
 	key:=fmt.Sprintf("%d",id)
 	nftkey,err:=ctx.GetStub().CreateCompositeKey(nftPrefix,[]string{key})
 	if err!=nil{
@@ -763,8 +773,15 @@ func (s *SmartContract)Request(ctx contractapi.TransactionContextInterface, id u
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal data %v",err)
 	}
+
+	// check if operator has the permission to request data
+	operator,_:=ctx.GetClientIdentity().GetID()
+	if operator!=value.ID{
+		return fmt.Errorf("failed to request data, operator is not the owner")
+	}
+
+	//fetch data from ipfs
 	cid:=value.CID
-	fmt.Printf("===request the file cid of token %d, cid:%s===\n",id,value.CID)
 	sh := shell.NewShell("ipfs_host:5001")
 	reader,err:=sh.Cat(cid)
 	if err!=nil{
