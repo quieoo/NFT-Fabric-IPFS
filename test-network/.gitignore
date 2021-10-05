@@ -13,4 +13,4 @@ system-genesis-block/*
 *.tar.gz
 log.txt
 
-/test-network/ipfs_temp/
+/ipfs_temp/
