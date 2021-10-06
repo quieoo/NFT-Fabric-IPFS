@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+         <title>NFT_IPFS_Fabric</title>
+        <script type="text/javascript">
+            function initAccount(){
+                const loc = location.href;
+                const n1 = loc.length;
+                const n2 = loc.indexOf('=');
+                const txt = decodeURI(loc.substr(n2 + 1, n1 - n2));
+
+                const t = document.getElementById("accountID");
+                encoded_t=self.btoa("")
+                t.innerHTML=txt+encoded_t
+            }
+        </script>
+     </head>
+     <body onload="javascript:initAccount();">
+        <div id="accountID"></div>
+        <h1>系统功能展示</h1>
+        <h2><a href="mint.html">创建NFT</a></h2>
+     </body>
+ </html>
