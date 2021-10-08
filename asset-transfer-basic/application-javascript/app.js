@@ -11,12 +11,9 @@ const FabricCAServices = require('fabric-ca-client');
 const path = require('path');
 const { buildCAClient, registerAndEnrollUser, enrollAdmin } = require('../../test-application/javascript/CAUtil.js');
 const { buildCCPOrg1, buildWallet } = require('../../test-application/javascript/AppUtil.js');
+const {buildCCPOrg2} = require("../../test-application/javascript/AppUtil");
 
-const channelName = 'mychannel';
-const chaincodeName = 'basic';
-const mspOrg1 = 'Org1MSP';
-const walletPath = path.join(__dirname, 'wallet');
-const org1UserId = 'appUser';
+
 
 function prettyJSONString(inputString) {
 	return JSON.stringify(JSON.parse(inputString), null, 2);
@@ -79,7 +76,7 @@ async function main() {
 		const caClient = buildCAClient(FabricCAServices, ccp, 'ca.org1.example.com');
 
 		// setup the wallet to hold the credentials of the application user
-		const wallet = await buildWallet(Wallets, walletPath);
+		const wallet = await buildWallet(Wallets, walletPath1);
 
 		// in a real application this would be done on an administrative flow, and only once
 		await enrollAdmin(caClient, wallet, mspOrg1);
@@ -176,5 +173,83 @@ async function main() {
 		console.error(`******** FAILED to run the application: ${error}`);
 	}
 }
+const user1 = 'minter';
+const user2 = 'recipient';
+const channelName = 'mychannel';
+const chaincodeName = 'basic';
+const mspOrg1 = 'Org1MSP';
+const mspOrg2 = 'Org2MSP';
+const walletPath1 = path.join(__dirname, 'wallet/org1');
+const walletPath2 = path.join(__dirname, 'wallet/org2');
 
-main();
+const org1UserId = 'appUser';
+
+async function test1(){
+	try{
+
+		const ccp1 = buildCCPOrg1()
+		const ccp2 = buildCCPOrg2()
+
+		const caClient1 = buildCAClient(FabricCAServices, ccp1, 'ca.org1.example.com');
+		const caClient2 = buildCAClient(FabricCAServices, ccp2, 'ca.org2.example.com');
+
+		const wallet1 = await buildWallet(Wallets, walletPath1);
+		const wallet2 = await buildWallet(Wallets, walletPath2);
+
+		await enrollAdmin(caClient1, wallet1, mspOrg1);
+		await enrollAdmin(caClient2, wallet2, mspOrg2);
+
+		await registerAndEnrollUser(caClient1, wallet1, mspOrg1, user1, 'org1.department1');
+		await registerAndEnrollUser(caClient2, wallet2, mspOrg2, user2, 'org2.department1');
+
+		try{
+			const gateway1 = new Gateway();
+			// act as user1, create asset
+			await gateway1.connect(ccp1, {
+				wallet: wallet1,
+				identity: user1,
+				discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
+			});
+			const network1 = await gateway1.getNetwork(channelName);
+			const contract1 = network1.getContract(chaincodeName);
+			console.log('\n--> Submit Transaction: CreateAsset, creates new asset with ID, color, owner, size, and appraisedValue arguments');
+			let result = await contract1.submitTransaction('CreateAsset', 'asset100', 'yellow', '5', 'minter', '1300');
+			console.log('*** Result: committed');
+			if (`${result}` !== '') {
+				console.log(`*** Result: ${prettyJSONString(result.toString())}`);
+			}
+
+			console.log('\n--> Submit Transaction: TransferAsset asset1, transfer to new owner of Tom');
+			await contract1.submitTransaction('TransferAsset', 'asset100', 'recipient');
+			console.log('*** Result: committed');
+			gateway1.disconnect()
+		}catch(error){
+			console.error(`******** FAILED to run the application: ${error}`);
+		}
+
+		try{
+			const gateway2 = new Gateway();
+			//act as user2, check asset owner
+			await gateway2.connect(ccp2, {
+				wallet:wallet2,
+				identity: user2,
+				discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
+			});
+			const network2 = await gateway2.getNetwork(channelName);
+			const contract2 = network2.getContract(chaincodeName);
+
+			console.log('\n--> Evaluate Transaction: ReadAsset, function returns an asset with a given assetID');
+			let result = await contract2.evaluateTransaction('ReadAsset', 'asset100');
+			console.log(`*** Result: ${prettyJSONString(result.toString())}`);
+			gateway2.disconnect()
+		}catch(error){
+			console.error(`******** FAILED to run the application: ${error}`);
+		}
+
+	} catch(error){
+		console.error(`******** FAILED to run the application: ${error}`);
+	}
+}
+
+// main();
+ test1();
