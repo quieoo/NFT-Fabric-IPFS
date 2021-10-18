@@ -21,7 +21,7 @@ exports.buildCCPOrg1 = () => {
 	// build a JSON object from the file contents
 	const ccp = JSON.parse(contents);
 
-	console.log(`Loaded the network configuration located at ${ccpPath}`);
+	//console.log(`Loaded the network configuration located at ${ccpPath}`);
 	return ccp;
 };
 
@@ -38,7 +38,7 @@ exports.buildCCPOrg2 = () => {
 	// build a JSON object from the file contents
 	const ccp = JSON.parse(contents);
 
-	console.log(`Loaded the network configuration located at ${ccpPath}`);
+	//console.log(`Loaded the network configuration located at ${ccpPath}`);
 	return ccp;
 };
 
@@ -47,7 +47,7 @@ exports.buildWallet = async (Wallets, walletPath) => {
 	let wallet;
 	if (walletPath) {
 		wallet = await Wallets.newFileSystemWallet(walletPath);
-		console.log(`Built a file system wallet at ${walletPath}`);
+		//console.log(`Built a file system wallet at ${walletPath}`);
 	} else {
 		wallet = await Wallets.newInMemoryWallet();
 		console.log('Built an in memory wallet');
