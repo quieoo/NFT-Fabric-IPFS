@@ -12,6 +12,8 @@ function prettyJSONString(inputString) {
     return JSON.stringify(JSON.parse(inputString), null, 2);
 }
 
+
+
 // org1 only has one account: admin
 // auction users belong to org2
 async function Login(clientID){
@@ -39,13 +41,14 @@ async function Login(clientID){
         return jsonresult
     }
     catch(err){
-        console.error(`******** FAILED to Login: ${err}`)
-        return 'Login failed'
+        //console.error(`******** FAILED to Login: ${err}`)
+        throw new Error(`******** FAILED to Login: ${err}`)
     }
 }
 
+
 //use org1.admin as operator to registe an account (uploadAccountBalance with 100)
-async function Registe(clientID){
+async function Register(clientID){
     try{
         // registe wallet
         // all registered user belong to org2
@@ -53,6 +56,7 @@ async function Registe(clientID){
         const caClient2 = buildCAClient(FabricCAServices, ccp2, 'ca.org2.example.com');
         const walletPath2=path.join(__dirname,'wallet/org2')
         const wallet2 = await buildWallet(Wallets, walletPath2);
+        await enrollAdmin(caClient2, wallet2, mspOrg2);
         await registerAndEnrollUser(caClient2, wallet2, mspOrg2, clientID, 'org2.department1');
         const gateway2 = new Gateway();
         await gateway2.connect(ccp2, {
@@ -80,17 +84,44 @@ async function Registe(clientID){
         const network = await gateway.getNetwork(channelName)
         const contract = network.getContract(chaincodeName);
 
-        let result=await contract.submitTransaction('UpdateAccount',account.toString(),'100')
-        let jsonresult=JSON.parse(result.toString())
+        await contract.submitTransaction('InitAccountBalance',account.toString(),'100')
         gateway.disconnect()
-        return jsonresult
     }catch(err){
-        console.error(`******** FAILED to Registe: ${err}`)
-        return 'registe falied'
+        throw new Error(`******** FAILED to Registe: ${err}`)
     }
 }
 
-async function Mint(clinetID, org, tokenID, filePath){
+async function GetAccountBalance(clientID,org){
+    try{
+        let ccp;
+        let walletPath;
+        if (org==='org1'){
+            ccp=buildCCPOrg1()
+            walletPath=path.join(__dirname, 'wallet/org1');
+        }else{
+            ccp=buildCCPOrg2()
+            walletPath=path.join(__dirname, 'wallet/org2');
+        }
+        const wallet = await buildWallet(Wallets, walletPath);
+
+        const gateway = new Gateway();
+        // act as user1, create asset
+        await gateway.connect(ccp, {
+            wallet: wallet,
+            identity: clientID,
+            discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
+        });
+
+        const network = await gateway.getNetwork(channelName)
+        const contract = network.getContract(chaincodeName);
+        let result = await contract.evaluateTransaction('GetAccountBalance')
+        return JSON.parse(result.toString())
+    }catch(err){
+        throw err
+    }
+}
+
+async function Mint(clientID, org, tokenID, filePath){
     try{
 
         let data = fs.readFileSync(filePath)
@@ -111,7 +142,7 @@ async function Mint(clinetID, org, tokenID, filePath){
         // act as user1, create asset
         await gateway.connect(ccp, {
             wallet: wallet,
-            identity: clinetID,
+            identity: clientID,
             discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
         });
 
@@ -127,7 +158,7 @@ async function Mint(clinetID, org, tokenID, filePath){
     }
 }
 
-async function Transfer(clinetID, org, tokenID, targetID){
+async function Transfer(clientID, org, tokenID, targetID){
     try{
         let ccp;
         let walletPath;
@@ -143,7 +174,7 @@ async function Transfer(clinetID, org, tokenID, targetID){
         // act as user1, create asset
         await gateway.connect(ccp, {
             wallet: wallet,
-            identity: clinetID,
+            identity: clientID,
             discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
         });
 
@@ -158,7 +189,7 @@ async function Transfer(clinetID, org, tokenID, targetID){
     }
 }
 
-async function ClientAccountID(clinetID, org){
+async function ClientAccountID(clientID, org){
     try{
         let ccp;
         let walletPath;
@@ -175,7 +206,7 @@ async function ClientAccountID(clinetID, org){
         // act as user1, create asset
         await gateway.connect(ccp, {
             wallet: wallet,
-            identity: clinetID,
+            identity: clientID,
             discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
         });
 
@@ -193,7 +224,7 @@ async function ClientAccountID(clinetID, org){
 
 
 
-async function Request(clinetID, org, tokenID){
+async function Request(clientID, org, tokenID){
     try{
         let ccp;
         let walletPath;
@@ -210,7 +241,7 @@ async function Request(clinetID, org, tokenID){
         // act as user1, create asset
         await gateway.connect(ccp, {
             wallet: wallet,
-            identity: clinetID,
+            identity: clientID,
             discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
         });
 
@@ -226,7 +257,7 @@ async function Request(clinetID, org, tokenID){
     }
 }
 
-async function Query(clinetID,org,tokenID){
+async function Query(clientID,org,tokenID){
     try{
         let ccp;
         let walletPath;
@@ -243,7 +274,7 @@ async function Query(clinetID,org,tokenID){
         // act as user1, create asset
         await gateway.connect(ccp, {
             wallet: wallet,
-            identity: clinetID,
+            identity: clientID,
             discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
         });
 
@@ -260,10 +291,127 @@ async function Query(clinetID,org,tokenID){
     }
 }
 
+async function TotalBids(clientID,org){
+    try{
+        let ccp;
+        let walletPath;
+        if (org==='org1'){
+            ccp=buildCCPOrg1()
+            walletPath=path.join(__dirname, 'wallet/org1');
+        }else{
+            ccp=buildCCPOrg2()
+            walletPath=path.join(__dirname, 'wallet/org2');
+        }
+        const wallet = await buildWallet(Wallets, walletPath);
 
+        const gateway = new Gateway();
+        // act as user1, create asset
+        await gateway.connect(ccp, {
+            wallet: wallet,
+            identity: clientID,
+            discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
+        });
 
-async function test(){
+        const network = await gateway.getNetwork(channelName)
+        const contract = network.getContract(chaincodeName);
+
+        let result=await contract.evaluateTransaction('TotalBids')
+        let i = parseInt(result.toString())
+        return i-1
+    }catch (error) {
+        console.error(`******** FAILED to get bid list: ${error}`)
+    }
+}
+
+async function GetBidsByIndex(clientID,org, index){
+    try{
+        let ccp;
+        let walletPath;
+        if (org==='org1'){
+            ccp=buildCCPOrg1()
+            walletPath=path.join(__dirname, 'wallet/org1');
+        }else{
+            ccp=buildCCPOrg2()
+            walletPath=path.join(__dirname, 'wallet/org2');
+        }
+        const wallet = await buildWallet(Wallets, walletPath);
+
+        const gateway = new Gateway();
+        // act as user1, create asset
+        await gateway.connect(ccp, {
+            wallet: wallet,
+            identity: clientID,
+            discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
+        });
+
+        const network = await gateway.getNetwork(channelName)
+        const contract = network.getContract(chaincodeName);
+
+        let result = await contract.evaluateTransaction('GetBidByIndex',index)
+        return result
+    }catch (error) {
+        console.error(`******** FAILED to get bid by index: ${error}`)
+    }
+}
+
+async function AddBid(clientID,org,tokenID, lowPrice,upPrice, time){
+    try{
+        let ccp;
+        let walletPath;
+        if (org==='org1'){
+            ccp=buildCCPOrg1()
+            walletPath=path.join(__dirname, 'wallet/org1');
+        }else{
+            ccp=buildCCPOrg2()
+            walletPath=path.join(__dirname, 'wallet/org2');
+        }
+        const wallet = await buildWallet(Wallets, walletPath);
+
+        const gateway = new Gateway();
+        // act as user1, create asset
+        await gateway.connect(ccp, {
+            wallet: wallet,
+            identity: clientID,
+            discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
+        });
+
+        const network = await gateway.getNetwork(channelName)
+        const contract = network.getContract(chaincodeName);
+
+        let result = await contract.submitTransaction('AddBid',tokenID,lowPrice,upPrice,time)
+        return result
+    }catch (error) {
+        console.error(`******** FAILED to add bid: ${error}`)
+    }
+}
+async function testView2(){
+
+    let result=await Mint('recipient','org2','1','uploads/t')
+    console.log(result.toString())  //expect result: NFT
+
+    result=await AddBid('recipient','org2','1','199','998')
+    console.log(result.toString())  //expect result: NFTBid
+
+    result=await GetBidsByIndex('recipient','org2','0')
+    console.log(result.toString())  //expect result: NFTBid
+
+    result =await Request('recipient','org2','1')
+    console.log(result.toString())  // expect result: file content
 
 }
-test()
-module.exports={Mint,Request,ClientAccountID,Transfer}
+async function testRequestBids(){
+    for(let i=0;i<6;i++){
+        await Mint('recipient','org2',i.toString(),'uploads/'+i.toString()+'.png')
+        await AddBid('recipient','org2',i.toString(),'1','10','10')
+    }
+    let result=await TotalBids('recipient','org2')
+    console.log(result.toString())
+}
+
+async function fullflowtest(){
+
+}
+
+// testRequestBids()
+
+module.exports={Mint,Request,ClientAccountID,Transfer,TotalBids,GetBidsByIndex,Register,Login,GetAccountBalance}
