@@ -34,14 +34,14 @@ async function Login(clientID){
         const contract = network.getContract(chaincodeName);
 
         let account=await contract.evaluateTransaction('ClientAccountID')
-        let result=await contract.evaluateTransaction('GetAccount',account.toString())
+        let result=await contract.evaluateTransaction('GetAccountBalance',account.toString())
 
         let jsonresult=JSON.parse(result.toString())
         gateway.disconnect()
         return jsonresult
     }
     catch(err){
-        //console.error(`******** FAILED to Login: ${err}`)
+        console.error(`******** FAILED to Login: ${err}`)
         throw new Error(`******** FAILED to Login: ${err}`)
     }
 }
@@ -87,6 +87,7 @@ async function Register(clientID){
         await contract.submitTransaction('InitAccountBalance',account.toString(),'100')
         gateway.disconnect()
     }catch(err){
+        console.error(`******** FAILED to Register: ${err}`)
         throw new Error(`******** FAILED to Registe: ${err}`)
     }
 }
@@ -117,6 +118,7 @@ async function GetAccountBalance(clientID,org){
         let result = await contract.evaluateTransaction('GetAccountBalance')
         return JSON.parse(result.toString())
     }catch(err){
+        console.error(`******** FAILED to GetAccountBalance: ${err}`)
         throw err
     }
 }
@@ -153,8 +155,9 @@ async function Mint(clientID, org, tokenID, filePath){
 
         gateway.disconnect()
         return result
-    }catch (error) {
-        console.error(`******** FAILED to mint token: ${error}`)
+    }catch (err) {
+        console.error(`******** FAILED to Mint: ${err}`)
+        throw err
     }
 }
 
@@ -184,8 +187,9 @@ async function Transfer(clientID, org, tokenID, targetID){
         let result = await contract.submitTransaction('Transfer',targetID,tokenID)
         gateway.disconnect()
         return result
-    }catch (error) {
-        console.error(`******** FAILED to transfer token: ${error}`)
+    }catch (err) {
+        console.error(`******** FAILED to transfer: ${err}`)
+        throw err
     }
 }
 
@@ -217,8 +221,9 @@ async function ClientAccountID(clientID, org){
 
         gateway.disconnect()
         return result.toString()
-    }catch (error) {
-        console.error(`******** FAILED to run the application: ${error}`)
+    }catch (err) {
+        console.error(`******** FAILED to ClientAccoutnID: ${err}`)
+        throw err
     }
 }
 
@@ -252,8 +257,9 @@ async function Request(clientID, org, tokenID){
 
         gateway.disconnect()
         return result
-    }catch (error) {
-        console.error(`******** FAILED to request token: ${error}`)
+    }catch (err) {
+        console.error(`******** FAILED to Request: ${err}`)
+        throw err
     }
 }
 
@@ -286,8 +292,9 @@ async function Query(clientID,org,tokenID){
         jsonresult=JSON.parse(result.toString())
         // console.log(jsonresult.Owner)
         return jsonresult
-    }catch (error) {
-        console.error(`******** FAILED to query token: ${error}`)
+    }catch (err) {
+        console.error(`******** FAILED to query: ${err}`)
+        throw err
     }
 }
 
@@ -315,11 +322,109 @@ async function TotalBids(clientID,org){
         const network = await gateway.getNetwork(channelName)
         const contract = network.getContract(chaincodeName);
 
-        let result=await contract.evaluateTransaction('TotalBids')
+        const currentTime=new Date().getTime()
+        let result=await contract.submitTransaction('TotalBidsWithTimeOutCheck',currentTime.toString())
         let i = parseInt(result.toString())
-        return i-1
-    }catch (error) {
-        console.error(`******** FAILED to get bid list: ${error}`)
+        return i
+    }catch (err) {
+        console.error(`******** FAILED to get bid list: ${err}`)
+        throw err
+    }
+}
+async function Offer(clientID, org, tokenID, Price){
+    try{
+        let ccp;
+        let walletPath;
+        if (org==='org1'){
+            ccp=buildCCPOrg1()
+            walletPath=path.join(__dirname, 'wallet/org1');
+        }else{
+            ccp=buildCCPOrg2()
+            walletPath=path.join(__dirname, 'wallet/org2');
+        }
+        const wallet = await buildWallet(Wallets, walletPath);
+
+        const gateway = new Gateway();
+        // act as user1, create asset
+        await gateway.connect(ccp, {
+            wallet: wallet,
+            identity: clientID,
+            discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
+        });
+
+        const network = await gateway.getNetwork(channelName)
+        const contract = network.getContract(chaincodeName);
+        console.log(Price+tokenID)
+
+        await contract.submitTransaction('Offer',Price,tokenID)
+
+    }catch (err) {
+        console.error(`******** FAILED to offer: ${err}`)
+        throw err
+    }
+}
+
+async function IsNFTExist(clientID, org, tokenID){
+    try{
+        let ccp;
+        let walletPath;
+        if (org==='org1'){
+            ccp=buildCCPOrg1()
+            walletPath=path.join(__dirname, 'wallet/org1');
+        }else{
+            ccp=buildCCPOrg2()
+            walletPath=path.join(__dirname, 'wallet/org2');
+        }
+        const wallet = await buildWallet(Wallets, walletPath);
+
+        const gateway = new Gateway();
+        // act as user1, create asset
+        await gateway.connect(ccp, {
+            wallet: wallet,
+            identity: clientID,
+            discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
+        });
+
+        const network = await gateway.getNetwork(channelName)
+        const contract = network.getContract(chaincodeName);
+
+        return await contract.evaluateTransaction('IsNFTExist',tokenID)
+    }catch (err) {
+        console.error(`******** FAILED to offer: ${err}`)
+        throw err
+    }
+}
+
+async function TotalNFTs(clientID,org){
+    try{
+        let ccp;
+        let walletPath;
+        if (org==='org1'){
+            ccp=buildCCPOrg1()
+            walletPath=path.join(__dirname, 'wallet/org1');
+        }else{
+            ccp=buildCCPOrg2()
+            walletPath=path.join(__dirname, 'wallet/org2');
+        }
+        const wallet = await buildWallet(Wallets, walletPath);
+
+        const gateway = new Gateway();
+        // act as user1, create asset
+        await gateway.connect(ccp, {
+            wallet: wallet,
+            identity: clientID,
+            discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
+        });
+
+        const network = await gateway.getNetwork(channelName)
+        const contract = network.getContract(chaincodeName);
+
+        let result=await contract.evaluateTransaction('TotalNFTs')
+        let i = parseInt(result.toString())
+        return i
+    }catch (err) {
+        console.error(`******** FAILED to get nft list: ${err}`)
+        throw err
     }
 }
 
@@ -349,12 +454,13 @@ async function GetBidsByIndex(clientID,org, index){
 
         let result = await contract.evaluateTransaction('GetBidByIndex',index)
         return result
-    }catch (error) {
-        console.error(`******** FAILED to get bid by index: ${error}`)
+    }catch (err) {
+        console.error(`******** FAILED to get bid by index: ${err}`)
+        throw err
     }
 }
 
-async function AddBid(clientID,org,tokenID, lowPrice,upPrice, time){
+async function GetNFTByIndex(clientID,org, index){
     try{
         let ccp;
         let walletPath;
@@ -378,12 +484,78 @@ async function AddBid(clientID,org,tokenID, lowPrice,upPrice, time){
         const network = await gateway.getNetwork(channelName)
         const contract = network.getContract(chaincodeName);
 
-        let result = await contract.submitTransaction('AddBid',tokenID,lowPrice,upPrice,time)
+        let result = await contract.evaluateTransaction('GetNFTByIndex',index)
         return result
-    }catch (error) {
-        console.error(`******** FAILED to add bid: ${error}`)
+    }catch (err) {
+        console.error(`******** FAILED to get nft by index: ${err}`)
+        throw err
     }
 }
+
+async function AddBid(clientID,org,tokenID, lowPrice,upPrice,lifetime){
+    try{
+        let ccp;
+        let walletPath;
+        if (org==='org1'){
+            ccp=buildCCPOrg1()
+            walletPath=path.join(__dirname, 'wallet/org1');
+        }else{
+            ccp=buildCCPOrg2()
+            walletPath=path.join(__dirname, 'wallet/org2');
+        }
+        const wallet = await buildWallet(Wallets, walletPath);
+
+        const gateway = new Gateway();
+        // act as user1, create asset
+        await gateway.connect(ccp, {
+            wallet: wallet,
+            identity: clientID,
+            discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
+        });
+
+        const network = await gateway.getNetwork(channelName)
+        const contract = network.getContract(chaincodeName);
+        const currentTime=new Date().getTime().toString()
+        let result = await contract.submitTransaction('AddBid',tokenID,lowPrice,upPrice,currentTime,lifetime)
+        return result
+    }catch (err) {
+        console.error(`******** FAILED to add bid: ${err}`)
+        throw err
+    }
+}
+
+async function IsOnSale(clientID,org, tokenID){
+    try{
+        let ccp;
+        let walletPath;
+        if (org==='org1'){
+            ccp=buildCCPOrg1()
+            walletPath=path.join(__dirname, 'wallet/org1');
+        }else{
+            ccp=buildCCPOrg2()
+            walletPath=path.join(__dirname, 'wallet/org2');
+        }
+        const wallet = await buildWallet(Wallets, walletPath);
+
+        const gateway = new Gateway();
+        // act as user1, create asset
+        await gateway.connect(ccp, {
+            wallet: wallet,
+            identity: clientID,
+            discovery: { enabled: true, asLocalhost: true } // using asLocalhost as this gateway is using a fabric network deployed locally
+        });
+
+        const network = await gateway.getNetwork(channelName)
+        const contract = network.getContract(chaincodeName);
+
+        let result = await contract.evaluateTransaction('IsNFTOnSale',tokenID)
+        return result
+    }catch (err) {
+        console.error(`******** FAILED to check is nft on sale: ${err}`)
+        throw err
+    }
+}
+
 async function testView2(){
 
     let result=await Mint('recipient','org2','1','uploads/t')
@@ -414,4 +586,4 @@ async function fullflowtest(){
 
 // testRequestBids()
 
-module.exports={Mint,Request,ClientAccountID,Transfer,TotalBids,GetBidsByIndex,Register,Login,GetAccountBalance}
+module.exports={Mint,Request,ClientAccountID,Transfer,TotalBids,GetBidsByIndex,Register,Login,GetAccountBalance,TotalNFTs,GetNFTByIndex,IsOnSale, IsNFTExist, AddBid, Offer}

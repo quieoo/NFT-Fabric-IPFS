@@ -1,4 +1,5 @@
 rm -rf wallet
+rm uploads/*
 node enrollAdmin.js org1
 #node enrollAdmin.js org2
 #node enrollUser.js org1 minter
