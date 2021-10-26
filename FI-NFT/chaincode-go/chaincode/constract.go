@@ -71,14 +71,7 @@ func (s *SmartContract) Offer(ctx contractapi.TransactionContextInterface, Price
 	if err != nil {
 		return fmt.Errorf("failed to getBid for Offer: %v\n", err)
 	}
-	if Price > bid.KillPrice {
-		fmt.Printf("Offer an price(%d) higher than kill price(%d)\n", Price, bid.KillPrice)
-		err = endBid(ctx, tokenID, Price)
-		if err != nil {
-			return fmt.Errorf("failed to endBid for Offer: %v\n", err)
-		}
-		return nil
-	}
+
 	if Price < bid.CurrentPrice {
 		return fmt.Errorf("failed to Offer, price lower than current max price\n")
 	}
@@ -93,6 +86,37 @@ func (s *SmartContract) Offer(ctx contractapi.TransactionContextInterface, Price
 	err = ctx.GetStub().PutState(key, jvalue)
 	if err != nil {
 		return fmt.Errorf("failed to PutState for Offer: %v\n", err)
+	}
+	return nil
+}
+func (s *SmartContract) FindBidToEnd(ctx contractapi.TransactionContextInterface, currentTime uint64) error {
+	tokenIDs, err := getBidsList(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get bid by index %v\n", err)
+	}
+
+	//first, check bidList: end timeout bids
+	for i := 0; i < len(tokenIDs); i++ {
+		err := tryEndBid(ctx, tokenIDs[i], currentTime)
+		if err != nil {
+			return fmt.Errorf("failed to tryEndBid for FindBidToEnd: %v\n", err)
+		}
+	}
+	return nil
+}
+func (s *SmartContract) TryEndBid(ctx contractapi.TransactionContextInterface, tokenID string, currentTime uint64) error {
+	return tryEndBid(ctx, tokenID, currentTime)
+}
+func tryEndBid(ctx contractapi.TransactionContextInterface, tokenID string, currentTime uint64) error {
+	bid, err := getBid(ctx, tokenID)
+	if err != nil {
+		return fmt.Errorf("failed to getBid for TryEndBid: %v\n", err)
+	}
+	if currentTime-bid.CreateTime > bid.LifeTime || bid.CurrentPrice >= bid.KillPrice {
+		err := endBid(ctx, tokenID, bid.CurrentPrice)
+		if err != nil {
+			return fmt.Errorf("failed to endBid for TryEndBidv: %v\n", err)
+		}
 	}
 	return nil
 }
@@ -139,11 +163,10 @@ func (s *SmartContract) AddBid(ctx contractapi.TransactionContextInterface, toke
 		return nil, fmt.Errorf("failed to marshal data\n")
 	}
 	err = ctx.GetStub().PutState(key, jvalue)
-	fmt.Printf("AddBid {%s : %v}\n",key,newbid)
+	fmt.Printf("AddBid {%s : %v}\n", key, newbid)
 	if err != nil {
 		return nil, fmt.Errorf("falied to add new Bid %v\n", err)
 	}
-
 
 	err = addBidsToList(ctx, tokenID)
 	if err != nil {
@@ -162,7 +185,6 @@ func (s *SmartContract) GetBidByIndex(ctx contractapi.TransactionContextInterfac
 		return nil, fmt.Errorf("index out of range [0,%d] %v \n", len(tokenIDs), err)
 	}
 	id := tokenIDs[index]
-
 
 	bid, err := getBid(ctx, id)
 	if err != nil {
@@ -228,8 +250,8 @@ func endBid(ctx contractapi.TransactionContextInterface, tokenID string, offer u
 	}
 
 	newOwner := bid.CurrentOwner
-	oldOwner:=nft.Owner
-	if newOwner!=NonBidder{
+	oldOwner := nft.Owner
+	if newOwner != NonBidder {
 		//transfer balance from bid.CurrentOwner to nft.Owner
 		newOwnerAccount, err := getAccountBalance(ctx, newOwner)
 		if err != nil {
@@ -248,14 +270,14 @@ func endBid(ctx contractapi.TransactionContextInterface, tokenID string, offer u
 		}
 		//change nft owner
 		//add to new owner's list
-		err=addNFTToList(ctx,newOwner,tokenID)
+		err = addNFTToList(ctx, newOwner, tokenID)
 		if err != nil {
-			return fmt.Errorf("failed to add nft to new owner's list for endbid:%v\n",err)
+			return fmt.Errorf("failed to add nft to new owner's list for endbid:%v\n", err)
 		}
 		//remove for old owner's list
-		err=removeNFTFromList(ctx,oldOwner,tokenID)
+		err = removeNFTFromList(ctx, tokenID, oldOwner)
 		if err != nil {
-			return fmt.Errorf("failed to remove nft to old owner's list for endbid:%v\n",err)
+			return fmt.Errorf("failed to remove nft to old owner's list for endbid:%v\n", err)
 		}
 		nft.Owner = newOwner
 		value, err := json.Marshal(nft)
@@ -264,8 +286,8 @@ func endBid(ctx contractapi.TransactionContextInterface, tokenID string, offer u
 		}
 		key, _ := ctx.GetStub().CreateCompositeKey(NFTPrefix, []string{tokenID})
 		err = ctx.GetStub().PutState(key, value)
-		if err != nil{
-			return fmt.Errorf("failed to PutState for BidEnd: %v\n",err)
+		if err != nil {
+			return fmt.Errorf("failed to PutState for BidEnd: %v\n", err)
 		}
 
 	}
@@ -307,40 +329,43 @@ func (s *SmartContract) IsNFTOnSale(ctx contractapi.TransactionContextInterface,
 	if !nft_exists {
 		return false, fmt.Errorf("nft not exists\n")
 	}
-	return bidExists(ctx,tokenID)
+	return bidExists(ctx, tokenID)
 
 }
 
-func (s *SmartContract) TotalBidsWithTimeOutCheck(ctx contractapi.TransactionContextInterface, currentTime uint64) (int, error) {
+type TotalBidsWithTimeOutCheckResult struct {
+	TotalAliveBid int
+	HasTimeOutBid bool
+}
+
+func (s *SmartContract) TotalBidsWithTimeOutCheck(ctx contractapi.TransactionContextInterface, currentTime uint64) (*TotalBidsWithTimeOutCheckResult, error) {
 	tokenIDs, err := getBidsList(ctx)
 	if err != nil {
-		return -1, fmt.Errorf("failed to get bid by index %v\n", err)
+		return nil, fmt.Errorf("failed to get bid by index %v\n", err)
 	}
-
+	result := &TotalBidsWithTimeOutCheckResult{0, false}
 	var activeTokenIDs []string
 	//first, check bidList: end timeout bids
 	for i := 0; i < len(tokenIDs); i++ {
 		tokenID := tokenIDs[i]
 		bid, err := getBid(ctx, tokenID)
 		if err != nil {
-			return -1, fmt.Errorf("failed to getBid for TotalBidsWithTimeOutCheck: %v\n", err)
+			return nil, fmt.Errorf("failed to getBid for TotalBidsWithTimeOutCheck: %v\n", err)
 		}
 		if currentTime-bid.CreateTime > bid.LifeTime {
 			//timeout
-			err := endBid(ctx, tokenID, bid.CurrentPrice)
-			if err != nil {
-				return -1, fmt.Errorf("failed to endBid for TotalBidsWithTimeOutCheck: %v\n", err)
-			}
+			result.HasTimeOutBid = true
 
 		} else {
 			activeTokenIDs = append(activeTokenIDs, tokenID)
 		}
 	}
-	return len(activeTokenIDs), nil
+	result.TotalAliveBid = len(activeTokenIDs)
+	return result, nil
 }
 
-func (s *SmartContract)IsNFTExist(ctx contractapi.TransactionContextInterface, tokenID string)(bool,error){
-	return nftExists(ctx,tokenID)
+func (s *SmartContract) IsNFTExist(ctx contractapi.TransactionContextInterface, tokenID string) (bool, error) {
+	return nftExists(ctx, tokenID)
 }
 func (s *SmartContract) TotalNFTs(ctx contractapi.TransactionContextInterface) (int, error) {
 	account, _ := ctx.GetClientIdentity().GetID()
@@ -405,7 +430,7 @@ func removeNFTFromList(ctx contractapi.TransactionContextInterface, tokenID stri
 	}
 	value := string(jvalue)
 	strs := strings.Fields(value)
-
+	fmt.Printf("@@@@@@removeNFTFromList: %v from %v\n", tokenID, strs)
 	newstring := ""
 	skip := false
 	for i := 0; i < len(strs); i++ {
@@ -430,7 +455,6 @@ func getNFTList(ctx contractapi.TransactionContextInterface, account string) ([]
 	}
 	value := string(jvalue)
 	strs := strings.Fields(value)
-	fmt.Printf("get all nfts %v\n", strs)
 	return strs, nil
 }
 func addBidsToList(ctx contractapi.TransactionContextInterface, newTokenID string) error {
@@ -450,18 +474,9 @@ func addBidsToList(ctx contractapi.TransactionContextInterface, newTokenID strin
 			return nil
 		}
 	}
-	value+=" "+newTokenID
+	value += " " + newTokenID
 	jvalue = []byte(value)
-	fmt.Printf("AddBidToList, %v\n",value)
-	return ctx.GetStub().PutState(key, jvalue)
-}
-func updateBidList(ctx contractapi.TransactionContextInterface, newTokenList []string) error {
-	key, _ := ctx.GetStub().CreateCompositeKey(NFTBidListsPrefix, []string{""})
-	newTokens := ""
-	for i := 0; i < len(newTokenList); i++ {
-		newTokens += newTokenList[i] + " "
-	}
-	jvalue := []byte(newTokens)
+	fmt.Printf("AddBidToList, %v\n", value)
 	return ctx.GetStub().PutState(key, jvalue)
 }
 
@@ -480,39 +495,39 @@ func addNFTToList(ctx contractapi.TransactionContextInterface, account string, t
 		}
 	}
 
-	value+=" "+tokenID
+	value += " " + tokenID
 
 	jvalue = []byte(value)
 	return ctx.GetStub().PutState(key, jvalue)
 }
 
 func bidExists(ctx contractapi.TransactionContextInterface, tokenID string) (bool, error) {
-	lst,err:=getBidsList(ctx)
+	lst, err := getBidsList(ctx)
 	if err != nil {
-		return false,fmt.Errorf("faled to getBidtList for IsNFTOnSale: %v\n",err)
+		return false, fmt.Errorf("faled to getBidtList for IsNFTOnSale: %v\n", err)
 	}
-	bidexist:=false
-	for _,b:=range lst{
-		if b==tokenID{
-			bidexist=true
+	bidexist := false
+	for _, b := range lst {
+		if b == tokenID {
+			bidexist = true
 		}
 	}
-	return bidexist,nil
+	return bidexist, nil
 }
 
 func nftExists(ctx contractapi.TransactionContextInterface, tokenID string) (bool, error) {
-	operator,_:=ctx.GetClientIdentity().GetID()
-	lst,err:=getNFTList(ctx,operator)
+	operator, _ := ctx.GetClientIdentity().GetID()
+	lst, err := getNFTList(ctx, operator)
 	if err != nil {
-		return false,fmt.Errorf("faled to getBidtList for IsNFTOnSale: %v\n",err)
+		return false, fmt.Errorf("faled to getBidtList for IsNFTOnSale: %v\n", err)
 	}
-	bidexist:=false
-	for _,b:=range lst{
-		if b==tokenID{
-			bidexist=true
+	bidexist := false
+	for _, b := range lst {
+		if b == tokenID {
+			bidexist = true
 		}
 	}
-	return bidexist,nil
+	return bidexist, nil
 }
 func getBid(ctx contractapi.TransactionContextInterface, tokenID string) (*NFTBid, error) {
 	nftkey, err := ctx.GetStub().CreateCompositeKey(BidPrefix, []string{tokenID})
@@ -526,7 +541,7 @@ func getBid(ctx contractapi.TransactionContextInterface, tokenID string) (*NFTBi
 	}
 	value := &NFTBid{}
 	err = json.Unmarshal(jvalue, value)
-	fmt.Printf("GetBid (%s: %v)\n",nftkey,jvalue)
+	fmt.Printf("GetBid (%s: %v)\n", nftkey, jvalue)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal data %v", err)
 	}
@@ -719,6 +734,9 @@ func (s *SmartContract) GetNFTByIndex(ctx contractapi.TransactionContextInterfac
 	nfts, err := getNFTList(ctx, operator)
 	if err != nil {
 		return nil, fmt.Errorf("failed to getNFTList for GetNFTByIndex: %v\n", err)
+	}
+	if len(nfts) < 0 {
+		return nil, fmt.Errorf("failed to getNFTByIndex, no nfts in current account\n")
 	}
 	if index < 0 || int(index) > len(nfts) {
 		return nil, fmt.Errorf("getNFTByIndex, index out of range [0,%d] %v \n", len(nfts), err)

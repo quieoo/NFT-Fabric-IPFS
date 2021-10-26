@@ -4,6 +4,7 @@ const path = require('path');
 const { buildCAClient, registerAndEnrollUser, enrollAdmin } = require('../../test-application/javascript/CAUtil.js');
 const { buildCCPOrg1, buildCCPOrg2, buildWallet } = require('../../test-application/javascript/AppUtil.js');
 const fs = require("fs");
+const {json} = require("express");
 
 const channelName = 'mychannel';
 const chaincodeName = 'finft';
@@ -323,9 +324,18 @@ async function TotalBids(clientID,org){
         const contract = network.getContract(chaincodeName);
 
         const currentTime=new Date().getTime()
-        let result=await contract.submitTransaction('TotalBidsWithTimeOutCheck',currentTime.toString())
-        let i = parseInt(result.toString())
-        return i
+        let totalBids
+        await contract.evaluateTransaction('TotalBidsWithTimeOutCheck',currentTime.toString()).then(async (result) => {
+            console.log(prettyJSONString(result))
+            const json_result = JSON.parse(result.toString())
+            totalBids = json_result.TotalAliveBid
+            const hasTimeOut = json_result.HasTimeOutBid
+            if (hasTimeOut.toString() === 'true') {
+                await contract.submitTransaction('FindBidToEnd', currentTime.toString())
+            }
+        } )
+        // let i = parseInt(result.toString())
+        return parseInt(totalBids.toString())
     }catch (err) {
         console.error(`******** FAILED to get bid list: ${err}`)
         throw err
@@ -356,7 +366,10 @@ async function Offer(clientID, org, tokenID, Price){
         const contract = network.getContract(chaincodeName);
         console.log(Price+tokenID)
 
-        await contract.submitTransaction('Offer',Price,tokenID)
+        await contract.submitTransaction('Offer',Price,tokenID).then(async () => {
+            const currentTime = new Date().getTime()
+            await contract.submitTransaction('TryEndBid', tokenID, currentTime.toString())
+        })
 
     }catch (err) {
         console.error(`******** FAILED to offer: ${err}`)

@@ -81,7 +81,8 @@ router.post('/mint', upload.single('file'), async (req, res, next) => {
                 }
 
                 let result=await Mint(clientID, org, tokenID, newname)
-                res.status(200).send('Successfully Mint NFT with id: ' + tokenID + ' for: ' + clientID + ', CID: '+result.toString())
+                const jrsult=JSON.parse(result.toString())
+                res.status(200).send('成功铸造货币！\n' + '数字资产被保存到IPFS上，可使用唯一标识符: ' + jrsult.CID + ' 访问')
             }else{
                 res.status(404)
             }
@@ -103,12 +104,10 @@ router.post('/account',async (req,res)=>{
     let param = US(req.url)
     let clientid=param.get('clientID')
     let org=param.get('org')
-    console.log(clientid)
-    console.log(org)
+    console.log(req.url)
     try{
         let result=await GetAccountBalance(clientid,org)
-        console.log(result)
-        res.status(200).send('user: ' + clientid + '\nbalance: '+ result.Balance +'\nencoded accountID: ' + result.Account)
+        res.status(200).send('用户名: ' + clientid + '\n余额: '+ result.Balance +'\n身份令牌: ' + result.Account)
     }catch(err){
         res.status(404).send(err)
     }
@@ -209,7 +208,7 @@ router.post('/offer',async(req,res)=>{
     let price=param.get('price')
     try{
         await Offer(clientid,org,tid,price)
-        res.status(200).send('successfully offer')
+        res.status(200).send('出价成功')
     }
     catch(err){
         res.status(404).send(err)
