@@ -6,15 +6,17 @@
 [Why build this app?](https://github.com/quieoo/nft_fabric_ipfs/blob/main/architecture/nft.pptx)
 
 # Demo Start
-## clone repo
+## Clone repo locally
 ```bash
 git clone https://github.com/quieoo/nft_fabric_ipfs.git
 ```
 ## Hyperledger Fabric and IPFS docker daemon bring up
 ```bash
-
+cd nft_fabric_ipfs/test-network/
+./000_bringDown.sh  
+./001_bringUP.sh 
 ```
-
+This will clean the environment and build hyperledger fabric peers and ipfs docker daemon, deploy chaincode FI-NFT
 
 # Hyperledger Fabric Samples
 
