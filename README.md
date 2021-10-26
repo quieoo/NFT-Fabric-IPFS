@@ -25,11 +25,17 @@ cd nft_fabric_ipfs/web/Server/
 node main.js
 ````
 
-## Start Vue frontend
+## Start Vue Frontend
 ````bash
 cd nft_fabric_ipfs/web/NFTAppOnVue/
 npm run dev
 ````
+## Visit Web Application
+````bash
+http://localhost:9527
+````
+
+
 
 # Credits
 🙏 This project is a fork of hyperledger fabric SDK see docs/README.md
