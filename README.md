@@ -16,7 +16,20 @@ cd nft_fabric_ipfs/test-network/
 ./000_bringDown.sh  
 ./001_bringUP.sh 
 ```
-This will clean the environment and build hyperledger fabric peers and ipfs docker daemon, deploy chaincode FI-NFT
+This will clean the environment and build hyperledger fabric peers and ipfs docker daemon, deploy chaincode "FI-NFT"
+
+## Start Web Server
+````bash
+cd nft_fabric_ipfs/web/Server/
+./register.sh
+node main.js
+````
+
+## Start Vue frontend
+````bash
+cd nft_fabric_ipfs/web/NFTAppOnVue/
+npm run dev
+````
 
 # Hyperledger Fabric Samples
 
