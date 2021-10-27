@@ -82,7 +82,7 @@ router.post('/mint', upload.single('file'), async (req, res, next) => {
 
                 let result=await Mint(clientID, org, tokenID, newname)
                 const jrsult=JSON.parse(result.toString())
-                res.status(200).send('成功铸造货币！\n' + '数字资产被保存到IPFS上，可使用唯一标识符: ' + jrsult.CID + ' 访问')
+                res.status(200).send('成功花费10元铸造货币！\n' + '数字资产被保存到IPFS上，可使用唯一标识符: ' + jrsult.CID + ' 访问')
             }else{
                 res.status(404)
             }

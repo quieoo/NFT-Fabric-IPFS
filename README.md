@@ -24,7 +24,6 @@ cd nft_fabric_ipfs/web/Server/
 ./register.sh
 node main.js
 ````
-
 ## Start Vue Frontend
 ````bash
 cd nft_fabric_ipfs/web/NFTAppOnVue/
