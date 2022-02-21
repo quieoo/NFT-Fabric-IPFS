@@ -5,8 +5,6 @@
 # Vim file artifacts
 .*.sw*
 # installed platform-specific binaries
-/bin
-/config
 .DS_Store
 .project
 # omit Go vendor directories
@@ -20,3 +18,4 @@ node_modules/
 build
 package-lock.json
 external-chaincode/
+web/Server/node_modules/

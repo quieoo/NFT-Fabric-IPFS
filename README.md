@@ -11,6 +11,7 @@
 git clone https://github.com/quieoo/nft_fabric_ipfs.git
 ```
 ## Hyperledger Fabric and IPFS docker daemon bring up
+make sure docker is running
 ```bash
 cd nft_fabric_ipfs/test-network/
 ./000_bringDown.sh  
@@ -21,6 +22,7 @@ This will clean the environment and build hyperledger fabric peers and ipfs dock
 ## Start Web Server
 ````bash
 cd nft_fabric_ipfs/web/Server/
+npm install
 ./register.sh
 node main.js
 ````
