@@ -8,7 +8,7 @@
 # Demo Start
 ## Clone repo locally
 ```bash
-git clone https://github.com/quieoo/nft_fabric_ipfs.git
+git clone --recurse-submodules https://github.com/quieoo/nft_fabric_ipfs.git
 ```
 ## Hyperledger Fabric and IPFS docker daemon bring up
 make sure docker is running
