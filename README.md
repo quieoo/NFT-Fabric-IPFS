@@ -28,6 +28,7 @@ node main.js
 ````
 ## Start Vue Frontend
 ````bash
+npm install
 cd nft_fabric_ipfs/web/NFTAppOnVue/
 npm run dev
 ````
