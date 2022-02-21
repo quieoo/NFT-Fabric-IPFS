@@ -1,0 +1,3 @@
+[submodule "web/NFTAppOnVue"]
+	path = web/NFTAppOnVue
+	url = https://github.com/quieoo/NFTAppOnVue.git
