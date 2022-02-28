@@ -16,7 +16,8 @@ cd nft_fabric_ipfs/test-network/
 ./000_bringDown.sh  
 ./001_bringUP.sh 
 ```
-we modify the ipfs source code so as the "add" api can serve the request of a file name located at ipfs's mount dir, this is because we can't find where chaincode VM mounted.
+We modify the ipfs source code so as the "add" api can serve the request of a file name located at ipfs's mount dir, this is because we can't find where chaincode VM mounted.
+We also modify "cat" api, so that we can check if file exist in ipfs distributed network from chaincode.
 Details can be found [here](https://github.com/quieoo/go-ipfs.git) at dev branch.
 We rebuild the ipfs and upload it to docker hub with "quieoo/docker-ipfs"
 
