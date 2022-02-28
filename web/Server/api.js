@@ -49,15 +49,52 @@ router.post('/login',async(req,res)=>{
         res.status(404).send(err)
     }
 })
-
-
-
-router.post('/mint', upload.single('file'), async (req, res, next) => {
+/*
+router.post('/upload', upload.single('file'), async (req, res, next) => {
     // 返回客户端的信息
     console.log(req.body.clientID)
     console.log(req.body.org)
     console.log(req.body.tokenID)
     console.log(req.file)
+    const clientID=req.body.clientID
+    const org=req.body.org
+    const tokenID=req.body.tokenID
+    // 获取文件
+    try{
+        const exist = await IsNFTExist(clientID,org,tokenID)
+        if( exist.toString()==='true'){
+            res.status(200).send('tokenID: '+ tokenID + ' already exists')
+        }else if (exist.toString()==='false'){
+            let file = req.file
+            let newname
+            if (file) {
+                // 获取文件名
+                let fileNameArr = tokenID+'.png'
+                // 获取文件后缀名
+                var suffix = fileNameArr[fileNameArr.length - 1]
+                // 文件重命名
+                newname=`./uploads/${fileNameArr}`
+                fs.renameSync('./uploads/' + file.filename, newname)
+                file['filename'] = `${fileNameArr}`
+            }
+
+            let result=await Mint(clientID, org, tokenID, newname)
+            const jrsult=JSON.parse(result.toString())
+            res.status(200).send('成功花费10元铸造货币！\n' + '数字资产被保存到IPFS上，可使用唯一标识符: ' + jrsult.CID + ' 访问')
+        }else{
+            res.status(404)
+        }
+    }catch(err){
+        res.status(404).send(err)
+    }
+})
+*/
+router.post('/mint', upload.single('file'), async (req, res, next) => {
+    // 返回客户端的信息
+    console.log('request from: '+req.body.clientID)
+    //console.log(req.body.org)
+    console.log('tokenID: '+req.body.tokenID)
+    console.log('upload file: '+req.file)
     const clientID=req.body.clientID
     const org=req.body.org
     const tokenID=req.body.tokenID
@@ -69,18 +106,17 @@ router.post('/mint', upload.single('file'), async (req, res, next) => {
             }else if (exist.toString()==='false'){
                 let file = req.file
                 let newname
-                if (file) {
-                    // 获取文件名
-                    let fileNameArr = tokenID+'.png'
-                    // 获取文件后缀名
-                    var suffix = fileNameArr[fileNameArr.length - 1]
-                    // 文件重命名
-                    newname=`./uploads/${fileNameArr}`
-                    fs.renameSync('./uploads/' + file.filename, newname)
-                    file['filename'] = `${fileNameArr}`
-                }
-
-                let result=await Mint(clientID, org, tokenID, newname)
+                //console.log(file.originalname)
+                let oname=file.originalname
+                let index=oname.lastIndexOf(".")
+                let suffix=oname.substr(index+1)
+                //rename file to tokenID, so as no conflict happens
+                let fileNameArr = tokenID+"."+suffix
+                newname=`./uploads/${fileNameArr}`
+                fs.renameSync('./uploads/' + file.filename, newname)
+                file['filename'] = `${fileNameArr}`
+                //console.log(newname)
+                let result=await Mint(clientID, org, tokenID, suffix)
                 const jrsult=JSON.parse(result.toString())
                 res.status(200).send('成功花费10元铸造货币！\n' + '数字资产被保存到IPFS上，可使用唯一标识符: ' + jrsult.CID + ' 访问')
             }else{
@@ -93,7 +129,7 @@ router.post('/mint', upload.single('file'), async (req, res, next) => {
 
 
 router.get('/uploads/*', (req, res) => {
-    console.log(res.url)
+    //console.log(res.url)
     // eslint-disable-next-line no-path-concat
     res.sendFile(__dirname + '/' + req.url)
     console.log('Request for ' + req.url + ' received.')
@@ -170,9 +206,9 @@ router.post('/getNFTByIndex',async(req,res)=>{
     try{
         let result=await GetNFTByIndex(clientid,org,index)
         let parsedresult=JSON.parse(result.toString())
-
+        //console.log(parsedresult)
         let onSale = await IsOnSale(clientid,org,parsedresult.ID)
-        let jsonResult= {'tokenID':parsedresult.ID, 'CID':parsedresult.CID, 'Status':onSale.toString()}
+        let jsonResult= {'tokenID':parsedresult.ID, 'CID':parsedresult.CID, 'Status':onSale.toString(), 'FileType':parsedresult.FileType}
         res.status(200).send(jsonResult)
     }
     catch(err){

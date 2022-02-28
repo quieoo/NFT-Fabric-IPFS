@@ -124,12 +124,8 @@ async function GetAccountBalance(clientID,org){
     }
 }
 
-async function Mint(clientID, org, tokenID, filePath){
+async function Mint(clientID, org, tokenID, ftype){
     try{
-
-        let data = fs.readFileSync(filePath)
-        //let fileURI = data.toString()
-        let fileURI = data.toString()
         let ccp;
         let walletPath;
         if (org==='org1'){
@@ -152,7 +148,14 @@ async function Mint(clientID, org, tokenID, filePath){
         const network = await gateway.getNetwork(channelName)
         const contract = network.getContract(chaincodeName);
 
-        let result = await contract.submitTransaction('MintWithFile',tokenID,fileURI)
+        //calculate file cid
+        const Hash = require('ipfs-only-hash')
+        const fs = require("fs");
+        const data = fs.readFileSync('uploads/'+tokenID+'.'+ftype);
+        const hash = await Hash.of(data)
+        console.log('got file cid: '+hash)
+
+        let result = await contract.submitTransaction('MintWithFile',tokenID,ftype,hash)
 
         gateway.disconnect()
         return result

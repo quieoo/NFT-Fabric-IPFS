@@ -161,13 +161,14 @@ services:
 
   ipfs:
     container_name: ipfs_host
-    image: ipfs/go-ipfs:latest
+    image: quieoo/docker-ipfs:latest
     ports:
         - 18080:18080
         - 4001:4001
         - 5001:5001
+        - 8080:8080
     volumes:
-        - /home/quieoo/desktop/fabric/fabric-samples/test-network/ipfs_temp:/export
-        - /home/quieoo/desktop/fabric/fabric-samples/test-network/ipfs_temp:/data/ipfs
+        - ../../web/Server/uploads:/export
+        - ../ipfs_temp:/data/ipfs
     networks:
         - test

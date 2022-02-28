@@ -19,3 +19,5 @@ build
 package-lock.json
 external-chaincode/
 web/Server/node_modules/
+web/Server/wallet/
+test-network/ipfs_temp/

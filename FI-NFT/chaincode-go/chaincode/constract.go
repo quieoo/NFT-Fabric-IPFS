@@ -22,15 +22,19 @@ const MINT_FEE = 10
 const MAX_LIFETIME = 3 * 24 * 60
 const NonBidder = "暂无竞拍"
 
+const ADDPREFIX = "fabric-uploader-local-file-"
+const CATPREFIX = "fabric-check-file-exist-"
+
 // SmartContract provides functions for transferring tokens between accounts
 type SmartContract struct {
 	contractapi.Contract
 }
 
 type NFT struct {
-	ID    string
-	CID   string
-	Owner string
+	ID       string
+	CID      string
+	Owner    string
+	FileType string
 }
 type NFTBid struct {
 	TokenID      string
@@ -629,23 +633,7 @@ func (s *SmartContract) GetBid(ctx contractapi.TransactionContextInterface, toke
 	return getBid(ctx, tokenID)
 }
 
-func (s *SmartContract) MintWithFile(ctx contractapi.TransactionContextInterface, tokenID string, content string) (*NFT, error) {
-	/*
-		file,ferr:=os.OpenFile(filepath,os.O_CREATE,0666)
-		defer file.Close()
-		_, ferr = file.Write([]byte("Hello NFT!"))
-		if ferr != nil {
-			return fmt.Errorf("failed to write file")
-		}*/
-
-	/*file,ferr:=os.Open(filepath)
-	if ferr!=nil{
-		fmt.Printf("ERR:%s\n",ferr.Error())
-		return ferr
-	}
-	defer file.Close()
-
-	r:=bufio.NewReader(file)*/
+func (s *SmartContract) MintWithFile(ctx contractapi.TransactionContextInterface, tokenID string, ftype string, hash string) (*NFT, error) {
 	//check operator balance
 	operator, err := ctx.GetClientIdentity().GetID()
 	if err != nil {
@@ -661,16 +649,48 @@ func (s *SmartContract) MintWithFile(ctx contractapi.TransactionContextInterface
 
 	sh := shell.NewShell("ipfs_host:5001")
 
-	cid, erripfs := sh.Add(strings.NewReader(content))
+	cid, erripfs := sh.Add(strings.NewReader(ADDPREFIX + tokenID + "." + ftype))
+	fmt.Printf("ADD to IPFS: %s%s.%s", ADDPREFIX, tokenID, ftype)
 	if erripfs != nil {
 		fmt.Println(erripfs.Error())
-		return nil, fmt.Errorf("failed to add file %v", erripfs)
+		fmt.Println("trying to find file in IPFS network...")
+		cat, err := sh.Cat(CATPREFIX + hash)
+		if err != nil {
+			fmt.Println("failed to cat file: " + err.Error())
+			return nil, fmt.Errorf("can't add or cat file: %v\n", err.Error())
+		}
+		buf := make([]byte, 1<<10)
+		_, err = cat.Read(buf)
+		if err != nil {
+			fmt.Println(err.Error())
+			return nil, fmt.Errorf("read buffer error: %v\n", err.Error())
+		}
+		err = cat.Close()
+		if err != nil {
+			fmt.Println(err.Error())
+			return nil, fmt.Errorf("failed to close reader: %v\n", err.Error())
+		}
+
+		providers := strings.Split(string(buf), " ")
+		if providers[0] != "find" {
+			return nil, fmt.Errorf("failed to find providers: %v\n", err.Error())
+		}
+		//return nil, fmt.Errorf("failed to add file %v", erripfs)
+	}else{
+		//add successfully, means the local file exists in server
+		if cid!=hash{
+			fmt.Println("Mint Error, since file content has changed")
+			return nil, fmt.Errorf("Mint Error, since file content has changed")
+		}
 	}
+
+
 	// Mint tokens
 	value := &NFT{
-		ID:    tokenID,
-		CID:   cid,
-		Owner: operator,
+		ID:       tokenID,
+		CID:      cid,
+		Owner:    operator,
+		FileType: ftype,
 	}
 	jvalue, err := json.Marshal(value)
 	if err != nil {
