@@ -1,7 +1,7 @@
 [//]: # (SPDX-License-Identifier: CC-BY-4.0)
 
 # System Architecture
-![image](https://github.com/quieoo/nft_fabric_ipfs/blob/main/architecture/architecture_nft_ipfs.drawio%20(2).png)
+![image](https://github.com/quieoo/nft_fabric_ipfs/blob/main/architecture/workflow.png)
 
 [Why build this app?](https://github.com/quieoo/nft_fabric_ipfs/blob/main/architecture/nft.pptx)
 # Demo Start
